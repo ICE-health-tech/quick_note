@@ -2,10 +2,16 @@ import { apiFetch } from '@/shared/lib/api-client'
 import { RoomAlreadyExistsError } from '@/features/rooms/api/room.errors'
 import type { Room } from '@/features/rooms/api/room.types'
 
+export const BusinessCode = {
+  SUCCESS: 'SUCCESS',
+  INVALID_ROOM_ID: 'INVALID_ROOM_ID',
+  ROOM_NOT_FOUND: 'ROOM_NOT_FOUND',
+  ROOM_ALREADY_EXISTS: 'ROOM_ALREADY_EXISTS',
+} as const
+
 type ApiResponse<T> = {
+  code: string
   data: T
-  success: boolean
-  message: string | null
 }
 
 type QuickNoteJson = {
@@ -24,34 +30,45 @@ function quickNoteToRoom(note: QuickNoteJson): Room {
   }
 }
 
-export async function loadRoomFromCore(id: string): Promise<Room> {
-  const response = await apiFetch(`/rooms/${encodeURIComponent(id)}`)
-
-  if (!response.ok) {
-    throw new Error(await response.text())
-  }
-
-  return response.json() as Promise<Room>
+async function parseApiResponse<T>(response: Response): Promise<ApiResponse<T>> {
+  return response.json() as Promise<ApiResponse<T>>
 }
 
-/** Create only — 409 if room id already exists (CoreBackend QuickNoteController). */
+function requireSuccessData<T>(body: ApiResponse<T>): T {
+  if (body.code !== BusinessCode.SUCCESS || body.data == null) {
+    throw new Error(body.code)
+  }
+  return body.data
+}
+
+export async function loadRoomFromCore(id: string): Promise<Room> {
+  const response = await apiFetch(`/rooms/${encodeURIComponent(id)}`)
+  const body = await parseApiResponse<Room>(response)
+
+  if (!response.ok) {
+    throw new Error(body.code)
+  }
+
+  return requireSuccessData(body)
+}
+
+/** Create only — ROOM_ALREADY_EXISTS if room id already exists. */
 export async function createRoomFromCore(id: string): Promise<Room> {
   const response = await apiFetch(`/quick-note/${encodeURIComponent(id)}`, {
     method: 'POST',
     body: JSON.stringify({ content: '' }),
   })
+  const body = await parseApiResponse<QuickNoteJson>(response)
 
-  if (response.status === 409) {
-    const body = (await response.json().catch(() => null)) as ApiResponse<void> | null
-    throw new RoomAlreadyExistsError(id, body?.message ?? undefined)
+  if (body.code === BusinessCode.ROOM_ALREADY_EXISTS) {
+    throw new RoomAlreadyExistsError(id)
   }
 
   if (!response.ok) {
-    throw new Error(await response.text())
+    throw new Error(body.code)
   }
 
-  const body = (await response.json()) as ApiResponse<QuickNoteJson>
-  return quickNoteToRoom(body.data)
+  return quickNoteToRoom(requireSuccessData(body))
 }
 
 export async function saveRoomToCore(
@@ -62,12 +79,13 @@ export async function saveRoomToCore(
     method: 'PUT',
     body: JSON.stringify({ content }),
   })
+  const body = await parseApiResponse<Room>(response)
 
   if (!response.ok) {
-    throw new Error(await response.text())
+    throw new Error(body.code)
   }
 
-  return response.json() as Promise<Room>
+  return requireSuccessData(body)
 }
 
 export function subscribeRoomFromCore(

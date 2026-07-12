@@ -1,0 +1,20 @@
+server:
+  port: ${SERVER_PORT:8081}
+  forward-headers-strategy: framework
+
+spring:
+  application:
+    name: quick-note-backend
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/quicknote}
+    username: ${DB_USERNAME:duylong}
+    password: ${DB_PASSWORD:duylongadminpass}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:5}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:validate}
+    properties:
+      hibernate:
+        default_schema: public
