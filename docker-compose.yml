@@ -9,7 +9,7 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./db/migration:/docker-entrypoint-initdb.d
+      - ./backend/db/migration:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U duylong -d quicknote"]
       interval: 5s
@@ -18,7 +18,8 @@ services:
 
   backend:
     image: duylongcontainer/quick-note-backend:latest
-    build: .
+    build:
+      context: ./backend
     depends_on:
       postgres:
         condition: service_healthy
@@ -30,6 +31,17 @@ services:
       DB_USERNAME: duylong
       DB_PASSWORD: duylongadminpass
       JPA_DDL_AUTO: validate
+
+  frontend:
+    image: duylongcontainer/quick-note-frontend:latest
+    build:
+      context: .
+      args:
+        VITE_API_URL: /api
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
 
 volumes:
   pgdata:

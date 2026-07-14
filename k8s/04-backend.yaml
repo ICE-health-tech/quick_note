@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quick-note-backend
+  namespace: quick-note
+  labels:
+    app: quick-note-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: quick-note-backend
+  template:
+    metadata:
+      labels:
+        app: quick-note-backend
+    spec:
+      containers:
+        - name: backend
+          image: duylongcontainer/quick-note-backend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8081
+              name: http
+          envFrom:
+            - secretRef:
+                name: quick-note-db
+            - configMapRef:
+                name: quick-note-config
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            initialDelaySeconds: 40
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: quick-note-backend
+  namespace: quick-note
+spec:
+  selector:
+    app: quick-note-backend
+  ports:
+    - port: 8081
+      targetPort: 8081
+      name: http

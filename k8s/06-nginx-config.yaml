@@ -1,0 +1,31 @@
+# Frontend nginx in the Docker image proxies /api → backend:8081.
+# In K8s the service DNS name is quick-note-backend, so we patch via ConfigMap
+# or use this Ingress-style rewrite sidecar if needed.
+#
+# This ConfigMap is mounted over default.conf so /api goes to the K8s Service.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: quick-note-nginx
+  namespace: quick-note
+data:
+  default.conf: |
+    server {
+        listen 80;
+        server_name _;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        location /api/ {
+            proxy_pass http://quick-note-backend:8081/;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }

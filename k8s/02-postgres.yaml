@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: quick-note-sql
+  namespace: quick-note
+data:
+  V1__rooms.sql: |
+    CREATE TABLE IF NOT EXISTS public.rooms (
+      id          text PRIMARY KEY,
+      content     text NOT NULL DEFAULT '',
+      updated_at  timestamptz NOT NULL DEFAULT now(),
+      created_at  timestamptz NOT NULL DEFAULT now(),
+      CONSTRAINT rooms_id_format CHECK (
+        char_length(id) BETWEEN 2 AND 64
+        AND id ~ '^[a-z0-9]+(-[a-z0-9]+)*$'
+      )
+    );
+
+    CREATE OR REPLACE FUNCTION public.set_updated_at()
+    RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+      new.updated_at = now();
+      RETURN new;
+    END;
+    $$;
+
+    DROP TRIGGER IF EXISTS rooms_set_updated_at ON public.rooms;
+    CREATE TRIGGER rooms_set_updated_at
+    BEFORE UPDATE ON public.rooms
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_updated_at();
+
+    CREATE INDEX IF NOT EXISTS rooms_updated_at_idx ON public.rooms (updated_at DESC);

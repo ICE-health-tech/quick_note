@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: quick-note-db
+  namespace: quick-note
+type: Opaque
+stringData:
+  POSTGRES_DB: quicknote
+  POSTGRES_USER: duylong
+  POSTGRES_PASSWORD: duylongadminpass
+  DB_URL: jdbc:postgresql://quick-note-postgres:5432/quicknote
+  DB_USERNAME: duylong
+  DB_PASSWORD: duylongadminpass
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: quick-note-config
+  namespace: quick-note
+data:
+  SERVER_PORT: "8081"
+  JPA_DDL_AUTO: validate
