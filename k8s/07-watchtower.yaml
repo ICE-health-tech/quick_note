@@ -1,0 +1,85 @@
+# K8s image refresh (Watchtower equivalent).
+# imagePullPolicy: Always on frontend/backend already pulls :latest on restart.
+# This CronJob restarts those Deployments on a schedule so new Hub digests get picked up.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: quick-note-image-refresh
+  namespace: quick-note
+  labels:
+    app: quick-note-image-refresh
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: quick-note-image-refresh
+  namespace: quick-note
+  labels:
+    app: quick-note-image-refresh
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames:
+      - quick-note-frontend
+      - quick-note-backend
+    verbs: ["get", "patch", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: quick-note-image-refresh
+  namespace: quick-note
+  labels:
+    app: quick-note-image-refresh
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: quick-note-image-refresh
+subjects:
+  - kind: ServiceAccount
+    name: quick-note-image-refresh
+    namespace: quick-note
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: quick-note-image-refresh
+  namespace: quick-note
+  labels:
+    app: quick-note-image-refresh
+spec:
+  # Every 5 minutes (same idea as WATCHTOWER_POLL_INTERVAL: 300)
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: quick-note-image-refresh
+        spec:
+          serviceAccountName: quick-note-image-refresh
+          restartPolicy: OnFailure
+          # Worker amd64 node (192.168.22.18) — do not schedule on master-k8s
+          nodeSelector:
+            kubernetes.io/hostname: quick-note
+          containers:
+            - name: refresh
+              image: bitnami/kubectl:1.32
+              imagePullPolicy: IfNotPresent
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  kubectl -n quick-note rollout restart deployment/quick-note-frontend
+                  kubectl -n quick-note rollout restart deployment/quick-note-backend
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  cpu: 100m
+                  memory: 64Mi

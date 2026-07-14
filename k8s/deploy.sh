@@ -15,6 +15,7 @@ kubectl apply -f "$ROOT/k8s/03-postgres-deploy.yaml"
 kubectl apply -f "$ROOT/k8s/04-backend.yaml"
 kubectl apply -f "$ROOT/k8s/06-nginx-config.yaml"
 kubectl apply -f "$ROOT/k8s/05-frontend.yaml"
+kubectl apply -f "$ROOT/k8s/07-watchtower.yaml"
 
 echo "==> Wait for pods"
 kubectl -n "$NS" rollout status deployment/quick-note-postgres --timeout=180s
