@@ -15,6 +15,9 @@ spec:
       labels:
         app: quick-note-frontend
     spec:
+      # Worker amd64 node (192.168.22.18) — do not schedule on master-k8s
+      nodeSelector:
+        kubernetes.io/hostname: quick-note
       containers:
         - name: frontend
           image: duylongcontainer/quick-note-frontend:latest
