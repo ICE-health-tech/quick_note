@@ -2,6 +2,11 @@ server:
   port: ${SERVER_PORT:8081}
   forward-headers-strategy: framework
 
+app:
+  cors:
+    # Comma-separated; override with APP_CORS_ALLOWED_ORIGINS in K8s/prod
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:4173,https://quicknote.icestore.art}
+
 spring:
   application:
     name: quick-note-backend
