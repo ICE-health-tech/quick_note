@@ -1,6 +1,5 @@
 .gradle/
 build/
-!gradle/wrapper/
 *.class
 *.jar
 *.war
@@ -9,3 +8,7 @@ build/
 .idea/
 *.iml
 .DS_Store
+
+# Wrapper jar must be in git — Docker/CI copies gradle/ and runs ./gradlew
+!gradle/wrapper/
+!gradle/wrapper/gradle-wrapper.jar
