@@ -51,7 +51,14 @@ export async function loadRoomFromCore(id: string): Promise<Room> {
 
   return requireSuccessData(body)
 }
-
+export async function getRoomStatusFromCore(id: string): Promise<boolean>{
+  const response = await apiFetch(`/room/${encodeURIComponent(id)}/status`)
+  const body =await parseApiResponse<boolean>(response);
+  if(!response.ok){
+    throw new Error(body.code);
+  }
+  return requireSuccessData(body);
+}
 /** Create only — ROOM_ALREADY_EXISTS if room id already exists. */
 export async function createRoomFromCore(id: string): Promise<Room> {
   const response = await apiFetch(`/quick-note/${encodeURIComponent(id)}`, {

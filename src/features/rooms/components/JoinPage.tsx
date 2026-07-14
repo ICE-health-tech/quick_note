@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ShareTab } from '@/features/rooms/components/ShareTab'
 import {
@@ -11,6 +11,7 @@ import {
   isValidRoomId,
   normalizeRoomId,
 } from '@/features/rooms/utils/normalizeRoomId'
+import { getRoomStatusFromCore } from '../api/rooms.core'
 
 type JoinView = 'join' | 'share'
 
@@ -20,9 +21,33 @@ export function JoinPage() {
   const [error, setError] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [activeView, setActiveView] = useState<JoinView>('join')
-
+  const [roomExists, setRoomExists] = useState(false)
+  const [isChecking, setIsChecking] = useState(false)
   const normalizedId = normalizeRoomId(roomId)
-  const canUseId = isValidRoomId(normalizedId)
+  const canUseId = isValidRoomId(normalizedId);
+  useEffect(() => {
+    if (!canUseId || !isRoomsApiConfigured()) {
+      setRoomExists(false)
+      return
+    }
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      setIsChecking(true)
+      try {
+        const exists = await getRoomStatusFromCore(normalizedId)
+        if (!cancelled) setRoomExists(exists)
+      } catch {
+        if (!cancelled) setRoomExists(false) // don't lock Create on network blip
+      } finally {
+        if (!cancelled) setIsChecking(false)
+      }
+    }, 300)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [normalizedId, canUseId])
+
 
   async function handleCreateRoom() {
     setError('')
@@ -147,16 +172,18 @@ export function JoinPage() {
                 {error}
               </p>
             ) : null}
-
-            <button
-              type="button"
-              onClick={() => void handleCreateRoom()}
-              disabled={isCreating}
-              className="w-full rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-base font-semibold text-emerald-300 transition hover:border-emerald-500/60 hover:bg-emerald-500/20 disabled:opacity-50"
-            >
-              {isCreating ? 'Creating…' : 'Create new room'}
-            </button>
-
+            {roomExists ? (
+  <p className="text-sm text-amber-400">Room already exists — use Join.</p>
+) :   <button
+type="button"
+onClick={() => void handleCreateRoom()}
+disabled={isCreating}
+className="w-full rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-base font-semibold text-emerald-300 transition hover:border-emerald-500/60 hover:bg-emerald-500/20 disabled:opacity-50"
+>
+{isCreating ? 'Creating…' : 'Create new room'}
+</button>
+}
+          
             <p className="text-center text-xs text-zinc-500">
               Creates a new room with the ID above. Join opens an existing room.
             </p>
