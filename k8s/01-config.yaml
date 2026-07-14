@@ -20,3 +20,4 @@ metadata:
 data:
   SERVER_PORT: "8081"
   JPA_DDL_AUTO: validate
+  APP_CORS_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:4173,https://quicknote.icestore.art,http://192.168.22.18:30080"
