@@ -1,23 +1,23 @@
 package com.quicknote.OrchestrationLayer;
 
-import java.util.Optional;
-
-import org.springframework.beans.factory.annotation.Autowired;
-
-import com.quicknote.DataLayer.RoomEntity;
 import com.quicknote.DataLayer.RoomRepository;
 
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
 public class CheckRoomStatusUseCaseImpl implements CheckRoomStatusUseCase {
-   
-    @Autowired
-    private RoomRepository roomRepository;
-    @Override
-    public boolean isRoomActive(String roomId){
-        Optional<RoomEntity> room= Optional.ofNullable(roomRepository.findById(roomId).orElseThrow(()-> new RoomAlreadyExistsException(roomId)));
-        if(room.isEmpty()){
-            return false;
-        }
-        return true;
-        
-    }
+
+	private final RoomRepository roomRepository;
+
+	public CheckRoomStatusUseCaseImpl(RoomRepository roomRepository) {
+		this.roomRepository = roomRepository;
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public boolean isRoomActive(String roomId) {
+		var normalizedId = RoomIdRules.normalize(roomId);
+		return roomRepository.existsById(normalizedId);
+	}
 }

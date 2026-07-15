@@ -1,12 +1,14 @@
 import type { Room } from '@/features/rooms/api/room.types'
 import {
   createRoomFromCore,
+  getRoomStatusFromCore,
   loadRoomFromCore,
   saveRoomToCore,
   subscribeRoomFromCore,
 } from '@/features/rooms/api/rooms.core'
 import {
   createRoomFromSupabase,
+  getRoomStatusFromSupabase,
   loadRoomFromSupabase,
   saveRoomToSupabase,
   subscribeRoomFromSupabase,
@@ -47,6 +49,16 @@ export async function createRoom(id: string): Promise<Room> {
   }
 
   return createRoomFromSupabase(id)
+}
+
+export async function getRoomStatus(id: string): Promise<boolean> {
+  const backend = requireBackend()
+
+  if (backend === 'core') {
+    return getRoomStatusFromCore(id)
+  }
+
+  return getRoomStatusFromSupabase(id)
 }
 
 export async function saveRoom(id: string, content: string): Promise<void> {
