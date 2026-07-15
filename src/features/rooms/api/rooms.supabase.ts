@@ -32,6 +32,19 @@ export async function loadRoomFromSupabase(id: string): Promise<Room> {
   return created as Room
 }
 
+export async function getRoomStatusFromSupabase(id: string): Promise<boolean> {
+  const supabase = requireSupabase()
+
+  const { data, error } = await supabase
+    .from('rooms')
+    .select('id')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (error) throw error
+  return Boolean(data)
+}
+
 /** Insert only — fails if room id already exists. */
 export async function createRoomFromSupabase(id: string): Promise<Room> {
   const supabase = requireSupabase()

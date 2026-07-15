@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ShareTab } from '@/features/rooms/components/ShareTab'
 import {
   createRoom,
+  getRoomStatus,
   isRoomAlreadyExistsError,
 } from '@/features/rooms/api/rooms.api'
 import { isRoomsApiConfigured } from '@/shared/lib/rooms-config'
@@ -11,7 +12,6 @@ import {
   isValidRoomId,
   normalizeRoomId,
 } from '@/features/rooms/utils/normalizeRoomId'
-import { getRoomStatusFromCore } from '../api/rooms.core'
 
 type JoinView = 'join' | 'share'
 
@@ -24,18 +24,23 @@ export function JoinPage() {
   const [roomExists, setRoomExists] = useState(false)
   const [isChecking, setIsChecking] = useState(false)
   const normalizedId = normalizeRoomId(roomId)
-  const canUseId = isValidRoomId(normalizedId);
+  const canUseId = isValidRoomId(normalizedId)
+
   useEffect(() => {
     if (!canUseId || !isRoomsApiConfigured()) {
       setRoomExists(false)
+      setIsChecking(false)
       return
     }
     let cancelled = false
     const timer = setTimeout(async () => {
       setIsChecking(true)
       try {
-        const exists = await getRoomStatusFromCore(normalizedId)
-        if (!cancelled) setRoomExists(exists)
+        const exists = await getRoomStatus(normalizedId)
+        if (!cancelled) {
+          setRoomExists(exists)
+          if (exists) setError('')
+        }
       } catch {
         if (!cancelled) setRoomExists(false) // don't lock Create on network blip
       } finally {
@@ -47,7 +52,6 @@ export function JoinPage() {
       clearTimeout(timer)
     }
   }, [normalizedId, canUseId])
-
 
   async function handleCreateRoom() {
     setError('')
@@ -68,6 +72,7 @@ export function JoinPage() {
       navigate(ROUTES.editor(normalizedId))
     } catch (cause) {
       if (isRoomAlreadyExistsError(cause)) {
+        setRoomExists(true)
         setError(
           `Room "${normalizedId}" already exists. Use Join room to open it, or pick another ID.`,
         )
@@ -173,17 +178,24 @@ export function JoinPage() {
               </p>
             ) : null}
             {roomExists ? (
-  <p className="text-sm text-amber-400">Room already exists — use Join.</p>
-) :   <button
-type="button"
-onClick={() => void handleCreateRoom()}
-disabled={isCreating}
-className="w-full rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-base font-semibold text-emerald-300 transition hover:border-emerald-500/60 hover:bg-emerald-500/20 disabled:opacity-50"
->
-{isCreating ? 'Creating…' : 'Create new room'}
-</button>
-}
-          
+              <p className="text-sm text-amber-400">
+                Room already exists — use Join.
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void handleCreateRoom()}
+                disabled={isCreating || isChecking}
+                className="w-full rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-base font-semibold text-emerald-300 transition hover:border-emerald-500/60 hover:bg-emerald-500/20 disabled:opacity-50"
+              >
+                {isCreating
+                  ? 'Creating…'
+                  : isChecking
+                    ? 'Checking…'
+                    : 'Create new room'}
+              </button>
+            )}
+
             <p className="text-center text-xs text-zinc-500">
               Creates a new room with the ID above. Join opens an existing room.
             </p>

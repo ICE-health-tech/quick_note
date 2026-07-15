@@ -7,8 +7,6 @@ import com.quicknote.domain.ApiResponse;
 import com.quicknote.domain.RoomDto;
 import com.quicknote.domain.SaveRoomRequest;
 
-import java.util.zip.CheckedInputStream;
-
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
