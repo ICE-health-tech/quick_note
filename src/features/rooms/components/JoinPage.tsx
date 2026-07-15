@@ -102,7 +102,11 @@ export function JoinPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col px-6">
+    <main
+      className={`mx-auto flex min-h-dvh flex-col px-6 ${
+        activeView === 'share' ? 'max-w-lg' : 'max-w-md'
+      }`}
+    >
       <header className="flex justify-end pt-6">
         <div
           className="flex rounded-xl border border-zinc-800 bg-zinc-900/80 p-1"
@@ -209,8 +213,8 @@ export function JoinPage() {
           </form>
         </div>
       ) : (
-        <div className="flex flex-1 flex-col justify-center py-8">
-          <div className="mb-6 text-center">
+        <div className="flex min-h-0 flex-1 flex-col py-4 pb-8">
+          <div className="mb-4 shrink-0 text-center">
             <p className="text-sm font-medium uppercase tracking-widest text-emerald-400">
               QR & Share
             </p>

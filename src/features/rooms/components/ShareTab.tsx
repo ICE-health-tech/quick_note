@@ -1,5 +1,10 @@
 import { QRCodeSVG } from 'qrcode.react'
-import { useEffect, useState, type FormEvent } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react'
 import { normalizeShareLink } from '@/features/rooms/utils/normalizeShareLink'
 
 interface ShareTabProps {
@@ -13,6 +18,8 @@ export function ShareTab({ initialLink = '' }: ShareTabProps) {
   )
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
+  const [qrSize, setQrSize] = useState(280)
+  const frameRef = useRef<HTMLDivElement>(null)
   const canNativeShare = typeof navigator.share === 'function'
 
   useEffect(() => {
@@ -20,6 +27,22 @@ export function ShareTab({ initialLink = '' }: ShareTabProps) {
     setQrLink(normalizeShareLink(initialLink))
     setError('')
   }, [initialLink])
+
+  // Grow QR to fill the frame (almost full viewport width on phones).
+  useEffect(() => {
+    const el = frameRef.current
+    if (!el) return
+
+    const update = () => {
+      const side = Math.floor(Math.min(el.clientWidth, el.clientHeight))
+      setQrSize(Math.max(160, side - 32))
+    }
+
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [qrLink])
 
   function handleGenerate(event: FormEvent) {
     event.preventDefault()
@@ -66,9 +89,50 @@ export function ShareTab({ initialLink = '' }: ShareTabProps) {
     }
   }
 
+  function downloadQr() {
+    const svg = frameRef.current?.querySelector('svg')
+    if (!svg || !qrLink) return
+
+    const serializer = new XMLSerializer()
+    const svgString = serializer.serializeToString(svg)
+    const svgBlob = new Blob([svgString], {
+      type: 'image/svg+xml;charset=utf-8',
+    })
+    const url = URL.createObjectURL(svgBlob)
+
+    const img = new Image()
+    img.onload = () => {
+      const pad = 24
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width + pad * 2
+      canvas.height = img.height + pad * 2
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        URL.revokeObjectURL(url)
+        return
+      }
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(img, pad, pad)
+
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(url)
+        if (!blob) return
+        const a = document.createElement('a')
+        const objectUrl = URL.createObjectURL(blob)
+        a.href = objectUrl
+        a.download = 'quick-note-qr.png'
+        a.click()
+        URL.revokeObjectURL(objectUrl)
+      }, 'image/png')
+    }
+    img.onerror = () => URL.revokeObjectURL(url)
+    img.src = url
+  }
+
   return (
-    <section className="flex flex-1 flex-col gap-6 py-2">
-      <form onSubmit={handleGenerate} className="space-y-4">
+    <section className="flex min-h-0 flex-1 flex-col gap-4">
+      <form onSubmit={handleGenerate} className="shrink-0 space-y-3">
         <label className="block">
           <span className="mb-2 block text-sm font-medium text-zinc-300">
             Paste link
@@ -101,33 +165,43 @@ export function ShareTab({ initialLink = '' }: ShareTabProps) {
       </form>
 
       {qrLink ? (
-        <div className="flex flex-col items-center gap-6">
-          <div className="rounded-2xl bg-white p-5 shadow-lg shadow-black/20">
+        <div className="flex min-h-0 flex-1 flex-col gap-4">
+          <div
+            ref={frameRef}
+            className="flex min-h-[min(70vw,420px)] flex-1 items-center justify-center rounded-2xl bg-white p-4 shadow-lg shadow-black/20"
+          >
             <QRCodeSVG
               value={qrLink}
-              size={220}
+              size={qrSize}
               level="M"
               includeMargin
               aria-label="QR code for pasted link"
             />
           </div>
 
-          <p className="max-w-sm break-all text-center text-xs text-zinc-500">
+          <p className="shrink-0 break-all text-center text-xs text-zinc-500">
             {qrLink}
           </p>
 
-          <div className="flex w-full max-w-sm flex-col gap-3 sm:flex-row">
+          <div className="grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-3">
+            <button
+              type="button"
+              onClick={downloadQr}
+              className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-300 transition hover:border-emerald-500/60 hover:bg-emerald-500/20"
+            >
+              Download
+            </button>
             <button
               type="button"
               onClick={copyLink}
-              className="flex-1 rounded-xl border border-zinc-700 px-4 py-3 text-sm font-medium text-zinc-200 transition hover:border-zinc-500 hover:text-white"
+              className="rounded-xl border border-zinc-700 px-4 py-3 text-sm font-medium text-zinc-200 transition hover:border-zinc-500 hover:text-white"
             >
               {copied ? 'Copied!' : 'Copy link'}
             </button>
             <button
               type="button"
               onClick={shareLink}
-              className="flex-1 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400"
+              className="rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400"
             >
               {canNativeShare ? 'Share' : 'Copy & share'}
             </button>
