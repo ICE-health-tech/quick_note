@@ -3,6 +3,11 @@ import { useState } from 'react'
 import { ShareTab } from '@/features/rooms/components/ShareTab'
 import { useRoom, type RoomSyncStatus } from '@/features/rooms/hooks/useRoom'
 import { getRoomEditorUrl } from '@/features/rooms/utils/roomUrl'
+import {
+  RoomDbBlocked,
+  RoomDbLoading,
+  useBackendHealth,
+} from '@/shared/components/BackendGate'
 import { ROUTES } from '@/shared/constants/routes'
 
 type EditorTab = 'note' | 'share'
@@ -40,6 +45,9 @@ export function EditorPage() {
   const { roomId = '' } = useParams()
   const decodedId = decodeURIComponent(roomId)
   const [activeTab, setActiveTab] = useState<EditorTab>('note')
+  const { data: health, isLoading: healthLoading, isFetching, refetch } =
+    useBackendHealth()
+  const roomsOk = health?.ok === true
   const { content, updateContent, status, error, isLoading, isConfigured } =
     useRoom(decodedId)
 
@@ -125,31 +133,43 @@ export function EditorPage() {
       </div>
 
       {activeTab === 'note' ? (
-        <>
-          {!isConfigured ? (
-            <p className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-              Set <code className="font-mono">VITE_API_URL</code> for CoreBackend
-              (e.g. <code className="font-mono">/api</code> in dev), or{' '}
-              <code className="font-mono">VITE_SUPABASE_URL</code> +{' '}
-              <code className="font-mono">VITE_SUPABASE_ANON_KEY</code>.
-            </p>
-          ) : null}
-
-          {error ? (
-            <p className="mb-4 text-sm text-red-400" role="alert">
-              Could not load room. Check CoreBackend or Supabase connection.
-            </p>
-          ) : null}
-
-          <textarea
-            value={content}
-            onChange={(event) => updateContent(event.target.value)}
-            disabled={isLoading}
-            placeholder="Type here — anyone with this room ID sees the same note."
-            spellCheck
-            className="min-h-[calc(100dvh-12rem)] flex-1 resize-none rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-4 text-base leading-relaxed text-zinc-100 outline-none ring-emerald-500/0 transition placeholder:text-zinc-500 focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/20 disabled:opacity-50"
+        healthLoading ? (
+          <RoomDbLoading />
+        ) : !roomsOk ? (
+          <RoomDbBlocked
+            message={
+              health?.ok === false ? health.message : 'Database is not connected.'
+            }
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
           />
-        </>
+        ) : (
+          <>
+            {!isConfigured ? (
+              <p className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                Set <code className="font-mono">VITE_API_URL</code> for
+                CoreBackend (e.g. <code className="font-mono">/api</code> in
+                dev), or <code className="font-mono">VITE_SUPABASE_URL</code> +{' '}
+                <code className="font-mono">VITE_SUPABASE_ANON_KEY</code>.
+              </p>
+            ) : null}
+
+            {error ? (
+              <p className="mb-4 text-sm text-red-400" role="alert">
+                Could not load room. Check CoreBackend or Supabase connection.
+              </p>
+            ) : null}
+
+            <textarea
+              value={content}
+              onChange={(event) => updateContent(event.target.value)}
+              disabled={isLoading}
+              placeholder="Type here — anyone with this room ID sees the same note."
+              spellCheck
+              className="min-h-[calc(100dvh-12rem)] flex-1 resize-none rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-4 text-base leading-relaxed text-zinc-100 outline-none ring-emerald-500/0 transition placeholder:text-zinc-500 focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/20 disabled:opacity-50"
+            />
+          </>
+        )
       ) : (
         <ShareTab initialLink={getRoomEditorUrl(decodedId)} />
       )}

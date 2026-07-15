@@ -6,6 +6,11 @@ import {
   getRoomStatus,
   isRoomAlreadyExistsError,
 } from '@/features/rooms/api/rooms.api'
+import {
+  RoomDbBlocked,
+  RoomDbLoading,
+  useBackendHealth,
+} from '@/shared/components/BackendGate'
 import { isRoomsApiConfigured } from '@/shared/lib/rooms-config'
 import { ROUTES } from '@/shared/constants/routes'
 import {
@@ -23,11 +28,14 @@ export function JoinPage() {
   const [activeView, setActiveView] = useState<JoinView>('join')
   const [roomExists, setRoomExists] = useState(false)
   const [isChecking, setIsChecking] = useState(false)
+  const { data: health, isLoading: healthLoading, isFetching, refetch } =
+    useBackendHealth()
+  const roomsOk = health?.ok === true
   const normalizedId = normalizeRoomId(roomId)
   const canUseId = isValidRoomId(normalizedId)
 
   useEffect(() => {
-    if (!canUseId || !isRoomsApiConfigured()) {
+    if (!roomsOk || !canUseId || !isRoomsApiConfigured()) {
       setRoomExists(false)
       setIsChecking(false)
       return
@@ -51,10 +59,15 @@ export function JoinPage() {
       cancelled = true
       clearTimeout(timer)
     }
-  }, [normalizedId, canUseId])
+  }, [normalizedId, canUseId, roomsOk])
 
   async function handleCreateRoom() {
     setError('')
+
+    if (!roomsOk) {
+      setError('Database is not connected. Use QR & Share, or retry when rooms are available.')
+      return
+    }
 
     if (!isRoomsApiConfigured()) {
       setError('Backend not configured. Set VITE_API_URL in .env and restart dev server.')
@@ -86,6 +99,11 @@ export function JoinPage() {
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
+
+    if (!roomsOk) {
+      setError('Database is not connected. Switch to QR & Share, or retry connection.')
+      return
+    }
 
     if (!canUseId) {
       setError('Use 2–64 characters: lowercase letters, numbers, hyphens.')
@@ -157,60 +175,70 @@ export function JoinPage() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium text-zinc-300">
-                Room ID
-              </span>
-              <input
-                type="text"
-                value={roomId}
-                onChange={(event) => {
-                  setRoomId(event.target.value)
-                  setError('')
-                }}
-                placeholder="e.g. coffee-meeting"
-                autoComplete="off"
-                autoFocus
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-base outline-none ring-emerald-500/0 transition focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/20"
-              />
-            </label>
+          {healthLoading ? (
+            <RoomDbLoading />
+          ) : !roomsOk ? (
+            <RoomDbBlocked
+              message={health?.ok === false ? health.message : 'Database is not connected.'}
+              onRetry={() => void refetch()}
+              isRetrying={isFetching}
+            />
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-zinc-300">
+                  Room ID
+                </span>
+                <input
+                  type="text"
+                  value={roomId}
+                  onChange={(event) => {
+                    setRoomId(event.target.value)
+                    setError('')
+                  }}
+                  placeholder="e.g. coffee-meeting"
+                  autoComplete="off"
+                  autoFocus
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-base outline-none ring-emerald-500/0 transition focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/20"
+                />
+              </label>
 
-            {error ? (
-              <p className="text-sm text-red-400" role="alert">
-                {error}
+              {error ? (
+                <p className="text-sm text-red-400" role="alert">
+                  {error}
+                </p>
+              ) : null}
+              {roomExists ? (
+                <p className="text-sm text-amber-400">
+                  Room already exists — use Join.
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void handleCreateRoom()}
+                  disabled={isCreating || isChecking}
+                  className="w-full rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-base font-semibold text-emerald-300 transition hover:border-emerald-500/60 hover:bg-emerald-500/20 disabled:opacity-50"
+                >
+                  {isCreating
+                    ? 'Creating…'
+                    : isChecking
+                      ? 'Checking…'
+                      : 'Create new room'}
+                </button>
+              )}
+
+              <p className="text-center text-xs text-zinc-500">
+                Creates a new room with the ID above. Join opens an existing room.
               </p>
-            ) : null}
-            {roomExists ? (
-              <p className="text-sm text-amber-400">
-                Room already exists — use Join.
-              </p>
-            ) : (
+
               <button
-                type="button"
-                onClick={() => void handleCreateRoom()}
-                disabled={isCreating || isChecking}
-                className="w-full rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-base font-semibold text-emerald-300 transition hover:border-emerald-500/60 hover:bg-emerald-500/20 disabled:opacity-50"
+                type="submit"
+                className="w-full rounded-xl bg-emerald-500 px-4 py-3 text-base font-semibold text-zinc-950 transition hover:bg-emerald-400"
               >
-                {isCreating
-                  ? 'Creating…'
-                  : isChecking
-                    ? 'Checking…'
-                    : 'Create new room'}
+                Join room
               </button>
-            )}
-
-            <p className="text-center text-xs text-zinc-500">
-              Creates a new room with the ID above. Join opens an existing room.
-            </p>
-
-            <button
-              type="submit"
-              className="w-full rounded-xl bg-emerald-500 px-4 py-3 text-base font-semibold text-zinc-950 transition hover:bg-emerald-400"
-            >
-              Join room
-            </button>
-          </form>
+            </form>
+          )}
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col py-4 pb-8">

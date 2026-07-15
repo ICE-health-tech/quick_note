@@ -2,11 +2,18 @@ import { useQuery } from '@tanstack/react-query'
 import { type ReactNode } from 'react'
 import { checkBackendHealth } from '@/shared/lib/health.api'
 
-interface BackendGateProps {
-  children: ReactNode
+export function useBackendHealth() {
+  return useQuery({
+    queryKey: ['backend-health'],
+    queryFn: checkBackendHealth,
+    retry: false,
+    refetchOnWindowFocus: true,
+    staleTime: 15_000,
+  })
 }
 
-function BlockedScreen({
+/** Inline block for room features only — QR/share stays outside this. */
+export function RoomDbBlocked({
   message,
   onRetry,
   isRetrying,
@@ -16,59 +23,38 @@ function BlockedScreen({
   isRetrying: boolean
 }) {
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center px-6 text-center">
+    <div className="rounded-2xl border border-red-500/30 bg-red-500/5 px-5 py-8 text-center">
       <p className="text-sm font-medium uppercase tracking-widest text-red-400">
-        Service unavailable
+        Rooms unavailable
       </p>
-      <h1 className="mt-3 text-2xl font-semibold tracking-tight">
+      <h2 className="mt-3 text-xl font-semibold tracking-tight">
         Cannot connect to database
-      </h1>
-      <p className="mt-4 text-sm leading-relaxed text-zinc-400">{message}</p>
-      <p className="mt-3 text-xs text-zinc-500">
-        Quick Note is blocked until the backend and database are healthy.
+      </h2>
+      <p className="mt-3 text-sm leading-relaxed text-zinc-400">{message}</p>
+      <p className="mt-2 text-xs text-zinc-500">
+        QR &amp; Share still works — switch tabs above. Rooms need a healthy DB.
       </p>
       <button
         type="button"
         onClick={onRetry}
         disabled={isRetrying}
-        className="mt-8 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400 disabled:opacity-50"
+        className="mt-6 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400 disabled:opacity-50"
       >
         {isRetrying ? 'Checking…' : 'Retry connection'}
       </button>
-    </main>
+    </div>
   )
 }
 
-function LoadingScreen() {
+export function RoomDbLoading() {
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center px-6 text-center">
-      <p className="text-sm text-zinc-400">Checking database connection…</p>
-    </main>
+    <p className="text-center text-sm text-zinc-400">
+      Checking database connection…
+    </p>
   )
 }
 
-export function BackendGate({ children }: BackendGateProps) {
-  const { data, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ['backend-health'],
-    queryFn: checkBackendHealth,
-    retry: false,
-    refetchOnWindowFocus: true,
-    staleTime: 15_000,
-  })
-
-  if (isLoading) {
-    return <LoadingScreen />
-  }
-
-  if (!data?.ok) {
-    return (
-      <BlockedScreen
-        message={data?.message ?? 'Database is not connected.'}
-        onRetry={() => void refetch()}
-        isRetrying={isFetching}
-      />
-    )
-  }
-
+/** @deprecated Prefer gating Join/Editor room UI with useBackendHealth — not the whole app. */
+export function BackendGate({ children }: { children: ReactNode }) {
   return children
 }
