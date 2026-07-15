@@ -4,18 +4,10 @@
 name: Deploy images
 
 on:
+  # Runs automatically on every push to main (no path filter).
   push:
     branches: [main]
-    paths:
-      - 'src/**'
-      - 'public/**'
-      - 'index.html'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'Dockerfile'
-      - 'deploy/**'
-      - 'backend/**'
-      - '.github/workflows/deploy-images.yml'
+  # Manual run: Actions → Deploy images → Run workflow
   workflow_dispatch:
 
 concurrency:
